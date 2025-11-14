@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Creator Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    
+    <!-- === PWA & Mobile Meta Tags === -->
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Story Studio">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/3B82F6/FFFFFF?text=SCS&font=inter">
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        textarea::-webkit-scrollbar { display: none; }
+        textarea { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+        .modal { transition: opacity 0.25s ease; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 h-screen flex flex-col overflow-hidden">
+
+    <div id="toast" class="hidden absolute top-5 right-5 z-50 px-6 py-4 rounded-lg shadow-xl text-white text-sm font-bold transition-all transform translate-y-0 max-w-md break-words"></div>
+    <div class="absolute top-4 right-4 z-10 text-xs text-gray-400" id="authStatus">Đang kết nối...</div>
+
+    <!-- 1. VIEW: DASHBOARD -->
+    <div id="view-dashboard" class="view-section w-full h-full flex flex-col items-center justify-center p-6 fade-in">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-2 tracking-tight">Story Creator <span class="text-blue-600">Studio</span></h1>
+            <p class="text-gray-500">Nơi khởi nguồn của những thế giới vĩ đại</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
+            <button onclick="app.setMode('write')" class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 card-hover transition duration-300 flex flex-col items-center text-center group h-64 justify-center">
+                <div class="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition">
+                    <i class="fas fa-pen-nib text-3xl text-blue-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Viết Truyện</h2>
+                <p class="text-sm text-gray-500">Quản lý và viết các chương truyện.</p>
+            </button>
+            <button onclick="app.setMode('build')" class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 card-hover transition duration-300 flex flex-col items-center text-center group h-64 justify-center">
+                <div class="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center mb-4 group-hover:bg-purple-100 transition">
+                    <i class="fas fa-globe-asia text-3xl text-purple-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">World Build</h2>
+                <p class="text-sm text-gray-500">Xây dựng thế giới và nhân vật.</p>
+            </button>
+        </div>
+        <button onclick="app.toggleShortcutModal()" class="mt-12 text-gray-400 hover:text-gray-600 text-sm flex items-center gap-2">
+            <i class="fas fa-keyboard"></i> Cài đặt phím tắt
+        </button>
+    </div>
+
+    <!-- 2. VIEW: LIST -->
+    <div id="view-list" class="view-section hidden w-full h-full flex flex-col fade-in bg-gray-50">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-4">
+                <button onclick="app.nav('dashboard')" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 id="list-header-title" class="text-xl font-bold text-gray-800">Thư viện</h2>
+            </div>
+            <button id="createBtn" onclick="app.nav('create')" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition shadow-lg">
+                <i class="fas fa-plus mr-2"></i>Tạo Mới
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6">
+            <div id="storyListContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto"></div>
+        </div>
+    </div>
+
+    <!-- 3. VIEW: CREATE -->
+    <div id="view-create" class="view-section hidden w-full h-full flex flex-col items-center justify-center p-6 fade-in bg-white">
+        <div class="max-w-xl w-full">
+            <button onclick="app.nav('list')" class="mb-6 text-gray-500 hover:text-gray-800 flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </button>
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">Tạo Truyện Mới</h2>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Tên tác phẩm</label>
+                    <input type="text" id="newTitle" class="w-full p-4 border border-gray-200 bg-gray-50 rounded-xl focus:bg-white focus:ring-2 focus:ring-black focus:outline-none transition" placeholder="Nhập tên truyện...">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Mô tả</label>
+                    <textarea id="newDesc" rows="4" class="w-full p-4 border border-gray-200 bg-gray-50 rounded-xl focus:bg-white focus:ring-2 focus:ring-black focus:outline-none transition resize-none" placeholder="Mô tả ít nhất 100 ký tự..."></textarea>
+                    <div class="flex justify-between mt-2">
+                        <span id="createCharCount" class="text-xs font-bold text-gray-400">0/100</span>
+                    </div>
+                </div>
+                <button onclick="app.createStory()" class="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition transform active:scale-95">
+                    Tạo Ngay
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. VIEW: WORKSPACE -->
+    <div id="view-workspace" class="view-section hidden w-full h-full flex flex-col bg-white fade-in">
+        <!-- Header -->
+        <div class="h-16 border-b border-gray-200 flex items-center px-4 justify-between bg-white shrink-0 z-20">
+            <div class="flex items-center gap-4 overflow-hidden">
+                <button onclick="app.nav('list')" class="text-gray-500 hover:text-black w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"><i class="fas fa-chevron-left"></i></button>
+                <div>
+                    <h2 id="ws-story-title" class="font-bold text-gray-900 truncate max-w-[200px] md:max-w-sm">Tên truyện</h2>
+                </div>
+            </div>
+            <div class="flex bg-gray-100 p-1 rounded-lg">
+                <button onclick="app.switchTab('chapters')" id="tab-btn-chapters" class="px-4 py-1.5 rounded-md text-sm font-medium transition-all">Viết Truyện</button>
+                <button onclick="app.switchTab('worldbuild')" id="tab-btn-worldbuild" class="px-4 py-1.5 rounded-md text-sm font-medium transition-all">World Build</button>
+            </div>
+            <button onclick="app.deleteCurrentStory()" class="text-red-400 hover:text-red-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50" title="Xóa Truyện"><i class="fas fa-trash-alt"></i></button>
+        </div>
+        <!-- Content -->
+        <div class="flex-1 relative overflow-hidden">
+            <!-- TAB: CHAPTERS -->
+            <div id="tab-content-chapters" class="absolute inset-0 flex hidden">
+                <div class="w-72 border-r border-gray-200 bg-gray-50 flex flex-col hidden md:flex">
+                    <div class="p-4 flex justify-between items-center border-b border-gray-100">
+                        <span class="font-bold text-gray-500 text-xs uppercase">Mục lục</span>
+                        <button onclick="app.newChapter()" class="text-blue-600 hover:bg-blue-100 p-1.5 rounded transition"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div id="chapterList" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1"></div>
+                </div>
+                <div id="chapterEditorArea" class="flex-1 flex flex-col bg-white relative">
+                    <div class="p-4 border-b border-gray-100 flex gap-2 flex-wrap items-center justify-between">
+                        <input id="chapTitleInput" class="flex-1 min-w-[150px] text-xl font-bold outline-none placeholder-gray-300" placeholder="Tiêu đề chương...">
+                        <div class="flex items-center gap-2 text-gray-400">
+                             <div class="flex flex-col items-end mr-3 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                 <span id="wordCountDisplay">0 từ</span>
+                                 <span id="charCountDisplay" class="text-gray-400 text-[10px]">0 ký tự</span>
+                             </div>
+                             <button onclick="editor.undo()" class="p-2 hover:text-black hover:bg-gray-100 rounded"><i class="fas fa-undo"></i></button>
+                             <button onclick="editor.redo()" class="p-2 hover:text-black hover:bg-gray-100 rounded"><i class="fas fa-redo"></i></button>
+                             <div class="w-px h-4 bg-gray-300 mx-1"></div>
+                             <button onclick="app.saveChapter()" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-sm transition">Lưu</button>
+                             <button onclick="app.deleteCurrentChapter()" class="text-red-400 p-2 hover:bg-red-50 rounded"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <textarea id="chapContentInput" class="flex-1 w-full p-8 resize-none outline-none text-lg leading-relaxed text-gray-800 font-serif" placeholder="Nội dung chương..."></textarea>
+                </div>
+                <div id="chapterEmptyState" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                    <i class="fas fa-book-open text-6xl text-gray-200 mb-4"></i>
+                    <p class="text-gray-400 mb-4">Chọn chương để viết hoặc tạo mới</p>
+                    <button onclick="app.newChapter()" class="bg-blue-600 text-white px-4 py-2 rounded shadow">Tạo chương mới</button>
+                </div>
+            </div>
+            <!-- TAB: WORLD BUILD -->
+            <div id="tab-content-worldbuild" class="absolute inset-0 flex hidden">
+                <div class="w-72 border-r border-gray-200 bg-purple-50/30 flex flex-col hidden md:flex">
+                    <div class="p-4 flex justify-between items-center border-b border-gray-100">
+                        <span class="font-bold text-purple-800 text-xs uppercase">Dữ liệu thế giới</span>
+                        <button onclick="app.newWBEntry()" class="text-purple-600 hover:bg-purple-100 p-1.5 rounded transition"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div id="wbList" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1"></div>
+                </div>
+                <div id="wbEditorArea" class="flex-1 flex flex-col bg-white relative">
+                    <div class="p-4 border-b border-gray-100 bg-purple-50/10 flex gap-2">
+                        <div class="flex items-center gap-2 flex-1">
+                            <span class="text-purple-500"><i class="fas fa-cube"></i></span>
+                            <input id="wbTitleInput" class="flex-1 text-lg font-bold outline-none placeholder-gray-300 bg-transparent" placeholder="Tên mục (Nhân vật, Địa danh)...">
+                        </div>
+                        <div class="flex items-center gap-1">
+                             <button onclick="app.saveWB()" class="bg-purple-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-purple-700 shadow-sm transition">Lưu</button>
+                             <button onclick="app.deleteCurrentWB()" class="text-red-400 p-2 hover:bg-red-50 rounded"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <textarea id="wbContentInput" class="flex-1 w-full p-8 resize-none outline-none text-base leading-relaxed text-gray-700" placeholder="Chi tiết xây dựng thế giới..."></textarea>
+                </div>
+                <div id="wbEmptyState" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                    <i class="fas fa-globe-americas text-6xl text-gray-200 mb-4"></i>
+                    <p class="text-gray-400 mb-4">Chọn mục World Build để biên soạn</p>
+                    <button onclick="app.newWBEntry()" class="bg-purple-600 text-white px-4 py-2 rounded shadow">Tạo mục mới</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SHORTCUTS -->
+    <div id="shortcutModal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-center justify-center z-50 transition-opacity duration-300">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="app.toggleShortcutModal()"></div>
+        <div class="bg-white w-full max-w-md mx-4 rounded-2xl shadow-2xl z-10 p-6 flex flex-col max-h-[80vh] transform transition-transform scale-95" id="shortcutContent">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">Phím tắt (Auto-replace)</h3>
+                <button onclick="app.toggleShortcutModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="flex gap-2 mb-4">
+                <input id="scKey" placeholder="Tắt (vd: ko)" class="border border-gray-300 p-3 rounded-lg w-1/3 text-sm focus:outline-none focus:border-black">
+                <input id="scVal" placeholder="Thay thế (vd: không)" class="border border-gray-300 p-3 rounded-lg w-2/3 text-sm focus:outline-none focus:border-black">
+                <button onclick="app.addShortcut()" class="bg-black text-white px-4 rounded-lg hover:bg-gray-800"><i class="fas fa-plus"></i></button>
+            </div>
+            <div id="scList" class="flex-1 overflow-y-auto border border-gray-200 rounded-lg bg-gray-50 p-2 space-y-2"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, addDoc, deleteDoc, onSnapshot, collection, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // === ĐÂY LÀ CONFIG CỦA BẠN ===
+        const firebaseConfig = {
+          apiKey: "AIzaSyBJk8pGVdBe6BO6FFWa8JdaEk_H0HEqfYA",
+          authDomain: "unlimited-world-ebba7.firebaseapp.com",
+          projectId: "unlimited-world-ebba7",
+          storageBucket: "unlimited-world-ebba7.firebasestorage.app",
+          messagingSenderId: "935498256620",
+          appId: "1:935498256620:web:9928e813dfbebd7b1a95c9",
+          measurementId: "G-E7JG5LEYR9"
+        };
+        // === HẾT CONFIG CỦA BẠN ===
+
+        // Chúng ta sẽ dùng projectId của bạn làm "appId"
+        const appId = firebaseConfig.projectId; 
+
+        let db, auth, userId;
+        let currentMode = 'write';
+        let currentStoryId = null;
+        let currentChapterId = null;
+        let currentWBId = null;
+        let shortcuts = {};
+        
+        let unsubChapters = null;
+        let unsubWB = null;
+
+        const $ = (id) => document.getElementById(id);
+        const showToast = (msg, type='success') => {
+            const t = $('toast');
+            t.textContent = msg;
+            t.className = `absolute top-5 right-5 z-50 px-6 py-4 rounded-lg shadow-xl text-white text-sm font-bold transition-all transform translate-y-0 ${type==='error'?'bg-red-500':'bg-green-600'}`;
+            t.classList.remove('hidden');
+            setTimeout(()=> {
+                t.classList.add('translate-y-[-100px]', 'opacity-0');
+                setTimeout(() => t.classList.add('hidden'), 300);
+            }, 5000);
+        };
+
+        // --- WORD COUNT LOGIC ---
+        const updateWordCount = () => {
+            const text = $('chapContentInput').value;
+            $('charCountDisplay').textContent = `${text.length} ký tự`;
+            const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+            $('wordCountDisplay').textContent = `${wordCount} từ`;
+        };
+        $('chapContentInput').addEventListener('input', updateWordCount);
+
+        // --- PWA REGISTRATION ---
+        function registerPWA() {
+            const manifestJSON = {
+                "name": "Story Creator Studio",
+                "short_name": "Story Studio",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#f9fafb",
+                "theme_color": "#ffffff",
+                "description": "Ứng dụng viết truyện và xây dựng thế giới.",
+                "icons": [
+                    { "src": "https://placehold.co/192x192/3B82F6/FFFFFF?text=SCS&font=inter", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+                    { "src": "https://placehold.co/512x512/3B82F6/FFFFFF?text=SCS&font=inter", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+                ]
+            };
+            const manifestString = JSON.stringify(manifestJSON);
+            const manifestBlob = new Blob([manifestString], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            let manifestLink = document.querySelector('link[rel="manifest"]');
+            manifestLink.href = manifestURL;
+
+            if ('serviceWorker' in navigator) {
+                const swContent = `
+                    const CACHE_NAME = 'story-studio-cache-v1';
+                    const URLS_TO_CACHE = [
+                        '.', 'https://cdn.tailwindcss.com',
+                        'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
+                        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css',
+                        'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js',
+                        'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js',
+                        'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js'
+                    ];
+                    self.addEventListener('install', event => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME).then(cache => {
+                                const cachePromises = URLS_TO_CACHE.map(url => {
+                                    return fetch(new Request(url, { mode: 'no-cors' }))
+                                        .then(response => cache.put(url, response))
+                                        .catch(err => console.warn('SW: Failed to cache', url, err));
+                                });
+                                return Promise.all(cachePromises);
+                            })
+                        );
+                    });
+                    self.addEventListener('fetch', event => {
+                        if (event.request.url.includes('firestore.googleapis.com')) {
+                            event.respondWith(fetch(event.request));
+                            return;
+                        }
+                        event.respondWith(
+                            caches.match(event.request).then(response => {
+                                if (response) return response;
+                                return fetch(event.request).then(response => {
+                                    if (!response || (response.status !== 200 && response.status !== 0)) return response;
+                                    const responseToCache = response.clone();
+                                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+                                    return response;
+                                });
+                            })
+                        );
+                    });
+                `;
+                const swBlob = new Blob([swContent], { type: 'application/javascript' });
+                const swURL = URL.createObjectURL(swBlob);
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register(swURL)
+                        .then(reg => console.log('SW registered!', reg))
+                        .catch(err => console.error('SW registration failed:', err));
+                });
+            }
+        }
+
+        window.app = {
+            setMode: (mode) => {
+                currentMode = mode;
+                const title = mode === 'write' ? 'Thư viện Truyện' : 'Thư viện World Build';
+                $('list-header-title').textContent = title;
+                const createBtn = $('createBtn');
+                createBtn.className = mode === 'write' 
+                    ? "bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-lg shadow-blue-200"
+                    : "bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition shadow-lg shadow-purple-200";
+                app.nav('list');
+            },
+            nav: (viewName) => {
+                ['view-dashboard', 'view-list', 'view-create', 'view-workspace'].forEach(id => $(id).classList.add('hidden'));
+                $(`view-${viewName}`).classList.remove('hidden');
+                if(viewName === 'list') app.loadStories();
+            },
+            switchTab: (tabName) => {
+                ['chapters', 'worldbuild'].forEach(t => {
+                    $(`tab-content-${t}`).classList.add('hidden');
+                    const btn = $(`tab-btn-${t}`);
+                    btn.className = "px-4 py-1.5 rounded-md text-sm font-medium transition-all text-gray-500 hover:text-gray-900 hover:bg-gray-200";
+                });
+                $(`tab-content-${tabName}`).classList.remove('hidden');
+                const activeBtn = $(`tab-btn-${tabName}`);
+                if(tabName === 'chapters') {
+                    activeBtn.className = "px-4 py-1.5 rounded-md text-sm font-bold transition-all bg-white text-blue-600 shadow-sm";
+                } else {
+                    activeBtn.className = "px-4 py-1.5 rounded-md text-sm font-bold transition-all bg-white text-purple-600 shadow-sm";
+                }
+            },
+            loadStories: () => {
+                if(!userId) return;
+                const q = collection(db, `artifacts/${appId}/users/${userId}/stories`);
+                onSnapshot(q, (snap) => {
+                    const c = $('storyListContainer');
+                    c.innerHTML = '';
+                    if(snap.empty) {
+                        c.innerHTML = `<div class="col-span-full text-center text-gray-400 py-12">Chưa có dữ liệu. Hãy tạo mới!</div>`;
+                        return;
+                    }
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        const el = document.createElement('div');
+                        const accentColor = currentMode === 'write' ? 'group-hover:border-blue-500' : 'group-hover:border-purple-500';
+                        const iconColor = currentMode === 'write' ? 'text-blue-100 bg-blue-600' : 'text-purple-100 bg-purple-600';
+                        const icon = currentMode === 'write' ? 'fa-book' : 'fa-globe';
+                        el.className = `bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg cursor-pointer transition duration-300 group flex flex-col relative overflow-hidden ${accentColor}`;
+                        el.innerHTML = `
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="w-12 h-12 rounded-xl ${iconColor} flex items-center justify-center shadow-md">
+                                    <i class="fas ${icon} text-xl"></i>
+                                </div>
+                            </div>
+                            <h3 class="font-bold text-xl text-gray-800 truncate mb-2 group-hover:text-black transition">${d.title}</h3>
+                            <p class="text-sm text-gray-500 line-clamp-3 flex-1 leading-relaxed">${d.description}</p>
+                            <div class="mt-4 pt-4 border-t border-gray-50 flex items-center text-xs font-bold text-gray-300 uppercase tracking-wider">
+                                ${currentMode === 'write' ? 'Mở để viết' : 'Mở World Build'} <i class="fas fa-arrow-right ml-auto"></i>
+                            </div>
+                        `;
+                        el.onclick = () => app.openStory(doc.id, d);
+                        c.appendChild(el);
+                    });
+                });
+            },
+            createStory: async () => {
+                const title = $('newTitle').value.trim();
+                const desc = $('newDesc').value.trim();
+                if(!title) return showToast('Vui lòng nhập tên truyện', 'error');
+                if(desc.length < 100) return showToast(`Mô tả quá ngắn (${desc.length}/100 ký tự)`, 'error');
+                try {
+                    const storyRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/stories`), {
+                        title, description: desc, createdAt: serverTimestamp()
+                    });
+                    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/stories/${storyRef.id}/worldbuild`), {
+                        title: "Thông tin chung", content: "Mô tả chung về thế giới...", createdAt: serverTimestamp()
+                    });
+                    showToast('Đã khởi tạo thành công!');
+                    $('newTitle').value = ''; $('newDesc').value = '';
+                    app.openStory(storyRef.id, { title, description: desc });
+                } catch(e) { console.error(e); showToast(`Lỗi khởi tạo: ${e.message}`, 'error'); }
+            },
+            openStory: (id, data) => {
+                currentStoryId = id;
+                $('ws-story-title').textContent = data.title;
+                app.nav('workspace');
+                if (currentMode === 'write') app.switchTab('chapters');
+                else app.switchTab('worldbuild');
+                app.loadChapters(id);
+                app.loadWorldBuild(id);
+            },
+            deleteCurrentStory: async () => {
+                if(!currentStoryId || !confirm("Xóa truyện này? Dữ liệu sẽ mất vĩnh viễn.")) return;
+                try {
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/stories`, currentStoryId));
+                    showToast('Đã xóa dữ liệu');
+                    app.nav('list');
+                } catch(e) { showToast(`Lỗi xóa: ${e.message}`, 'error'); }
+            },
+            loadChapters: (storyId) => {
+                if(unsubChapters) unsubChapters();
+                const q = collection(db, `artifacts/${appId}/users/${userId}/stories/${storyId}/chapters`);
+                unsubChapters = onSnapshot(q, (snap) => {
+                    const list = $('chapterList');
+                    list.innerHTML = '';
+                    if(snap.empty) { list.innerHTML = '<p class="p-4 text-center text-xs text-gray-400">Chưa có chương</p>'; }
+                    snap.forEach(d => {
+                        const item = document.createElement('div');
+                        const isActive = currentChapterId === d.id;
+                        item.className = `p-3 rounded-lg cursor-pointer mb-1 transition text-sm font-medium ${isActive ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'}`;
+                        item.textContent = d.data().title || 'Không tên';
+                        item.onclick = () => app.selectChapter(d.id, d.data());
+                        list.appendChild(item);
+                    });
+                });
+            },
+            selectChapter: (id, data) => {
+                currentChapterId = id;
+                $('chapterEmptyState').classList.add('hidden');
+                $('chapTitleInput').value = data.title;
+                $('chapContentInput').value = data.content || '';
+                updateWordCount();
+                app.loadChapters(currentStoryId);
+            },
+            newChapter: () => {
+                currentChapterId = null;
+                $('chapterEmptyState').classList.add('hidden');
+                $('chapTitleInput').value = ''; $('chapContentInput').value = '';
+                $('chapTitleInput').focus();
+                updateWordCount();
+                app.loadChapters(currentStoryId);
+            },
+            saveChapter: async () => {
+                const title = $('chapTitleInput').value.trim();
+                const content = $('chapContentInput').value;
+                if(!title) return showToast('Thiếu tiêu đề chương', 'error');
+                const path = `artifacts/${appId}/users/${userId}/stories/${currentStoryId}/chapters`;
+                try {
+                    if(currentChapterId) {
+                        await setDoc(doc(db, path, currentChapterId), { title, content, updatedAt: serverTimestamp() }, { merge: true });
+                    } else {
+                        const ref = await addDoc(collection(db, path), { title, content, createdAt: serverTimestamp() });
+                        currentChapterId = ref.id;
+                    }
+                    showToast('Đã lưu chương');
+                    app.selectChapter(currentChapterId, {title, content});
+                } catch(e) { showToast(`Lỗi lưu: ${e.message}`, 'error'); }
+            },
+            deleteCurrentChapter: async () => {
+                if(!currentChapterId || !confirm('Xóa chương này?')) return;
+                try {
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/stories/${currentStoryId}/chapters`, currentChapterId));
+                    currentChapterId = null;
+                    $('chapterEmptyState').classList.remove('hidden');
+                    showToast('Đã xóa');
+                } catch(e) { showToast(`Lỗi xóa: ${e.message}`, 'error'); }
+            },
+            loadWorldBuild: (storyId) => {
+                if(unsubWB) unsubWB();
+                const q = collection(db, `artifacts/${appId}/users/${userId}/stories/${storyId}/worldbuild`);
+                unsubWB = onSnapshot(q, (snap) => {
+                    const list = $('wbList');
+                    list.innerHTML = '';
+                    if(snap.empty) { list.innerHTML = '<p class="p-4 text-center text-xs text-gray-400">Trống</p>'; }
+                    snap.forEach(d => {
+                        const item = document.createElement('div');
+                        const isActive = currentWBId === d.id;
+                        item.className = `p-3 rounded-lg cursor-pointer mb-1 transition text-sm font-medium ${isActive ? 'bg-white text-purple-600 shadow-sm border border-purple-100' : 'text-gray-600 hover:bg-purple-100 hover:text-purple-800'}`;
+                        item.innerHTML = `<i class="fas fa-file-alt mr-2 opacity-50"></i>${d.data().title}`;
+                        item.onclick = () => app.selectWB(d.id, d.data());
+                        list.appendChild(item);
+                    });
+                });
+            },
+            selectWB: (id, data) => {
+                currentWBId = id;
+                $('wbEmptyState').classList.add('hidden');
+                $('wbTitleInput').value = data.title;
+                $('wbContentInput').value = data.content || '';
+                app.loadWorldBuild(currentStoryId);
+            },
+            newWBEntry: () => {
+                currentWBId = null;
+                $('wbEmptyState').classList.add('hidden');
+                $('wbTitleInput').value = ''; $('wbContentInput').value = '';
+                $('wbTitleInput').focus();
+                app.loadWorldBuild(currentStoryId);
+            },
+            saveWB: async () => {
+                const title = $('wbTitleInput').value.trim();
+                const content = $('wbContentInput').value;
+                if(!title) return showToast('Thiếu tên mục', 'error');
+                const path = `artifacts/${appId}/users/${userId}/stories/${currentStoryId}/worldbuild`;
+                try {
+                    if(currentWBId) {
+                        await setDoc(doc(db, path, currentWBId), { title, content, updatedAt: serverTimestamp() }, { merge: true });
+                    } else {
+                        const ref = await addDoc(collection(db, path), { title, content, createdAt: serverTimestamp() });
+                        currentWBId = ref.id;
+                    }
+                    showToast('Đã lưu World Build');
+                    app.selectWB(currentWBId, {title, content});
+                } catch(e) { showToast(`Lỗi lưu WB: ${e.message}`, 'error'); }
+            },
+            deleteCurrentWB: async () => {
+                if(!currentWBId || !confirm('Xóa mục này?')) return;
+                try {
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/stories/${currentStoryId}/worldbuild`, currentWBId));
+                    currentWBId = null;
+                    $('wbEmptyState').classList.remove('hidden');
+                    showToast('Đã xóa');
+                } catch(e) { showToast(`Lỗi xóa: ${e.message}`, 'error'); }
+            },
+            toggleShortcutModal: () => {
+                const m = $('shortcutModal');
+                const c = $('shortcutContent');
+                if(m.classList.contains('opacity-0')) {
+                    m.classList.remove('opacity-0', 'pointer-events-none');
+                    c.classList.remove('scale-95'); c.classList.add('scale-100');
+                    app.loadShortcuts();
+                } else {
+                    m.classList.add('opacity-0', 'pointer-events-none');
+                    c.classList.remove('scale-100'); c.classList.add('scale-95');
+                }
+            },
+            loadShortcuts: async () => {
+                if(!userId) return;
+                try {
+                    const snap = await getDoc(doc(db, `artifacts/${appId}/users/${userId}/settings`, 'shortcuts'));
+                    shortcuts = snap.exists() ? snap.data().map : {};
+                    const list = $('scList');
+                    list.innerHTML = '';
+                    if(Object.keys(shortcuts).length === 0) list.innerHTML = '<p class="text-center text-gray-400 text-xs mt-4">Chưa có phím tắt</p>';
+                    Object.entries(shortcuts).forEach(([k,v]) => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between p-3 bg-white border border-gray-100 rounded shadow-sm text-sm items-center';
+                        div.innerHTML = `<span><b class="text-purple-600">${k}</b> <i class="fas fa-arrow-right text-xs mx-1 text-gray-300"></i> ${v}</span> <button onclick="app.delShortcut('${k}')" class="text-gray-400 hover:text-red-500"><i class="fas fa-trash"></i></button>`;
+                        list.appendChild(div);
+                    });
+                } catch(e){ console.error(e); }
+            },
+            addShortcut: async () => {
+                const k = $('scKey').value.toLowerCase().trim();
+                const v = $('scVal').value.trim();
+                if(k&&v) {
+                    shortcuts[k] = v;
+                    await setDoc(doc(db, `artifacts/${appId}/users/${userId}/settings`, 'shortcuts'), { map: shortcuts }, { merge: true });
+                    $('scKey').value = ''; $('scVal').value = '';
+                    app.loadShortcuts();
+                }
+            },
+            delShortcut: async (k) => {
+                delete shortcuts[k];
+                await setDoc(doc(db, `artifacts/${appId}/users/${userId}/settings`, 'shortcuts'), { map: shortcuts }, { merge: true });
+                app.loadShortcuts();
+            }
+        };
+
+        const handleShortcuts = (e) => {
+            const isSpace = e.key === ' ' || e.code === 'Space';
+            const isEnter = e.key === 'Enter';
+            if (isSpace || isEnter) {
+                const el = e.target;
+                const text = el.value.slice(0, el.selectionStart);
+                const match = text.match(/([^\s]+)$/);
+                if (match) {
+                    const word = match[1].toLowerCase();
+                    if (shortcuts[word]) {
+                        e.preventDefault();
+                        const start = match.index;
+                        const end = el.selectionStart;
+                        el.setSelectionRange(start, end);
+                        const sep = isEnter ? '\n' : ' ';
+                        document.execCommand('insertText', false, shortcuts[word] + sep);
+                    }
+                }
+            }
+        };
+        $('chapContentInput').addEventListener('keydown', handleShortcuts);
+        $('wbContentInput').addEventListener('keydown', handleShortcuts);
+        $('newDesc').addEventListener('input', (e) => {
+            const l = e.target.value.length;
+            $('createCharCount').textContent = `${l}/100`;
+            $('createCharCount').className = l >= 100 ? 'text-xs font-bold text-green-500' : 'text-xs font-bold text-red-400';
+        });
+
+        window.editor = {
+            undo: () => document.execCommand('undo'),
+            redo: () => document.execCommand('redo')
+        }
+
+        // === KHỞI TẠO VÀ ĐĂNG NHẬP ===
+        (async () => {
+            try {
+                const appRef = initializeApp(firebaseConfig);
+                auth = getAuth(appRef);
+                db = getFirestore(appRef);
+                
+                onAuthStateChanged(auth, (u) => {
+                    if(u) {
+                        userId = u.uid;
+                        // Cập nhật trạng thái đã kết nối
+                        $('authStatus').textContent = `Đã kết nối (ID: ...${u.uid.slice(-4)})`;
+                        app.nav('dashboard'); // Chuyển tới app
+                    } else {
+                        $('authStatus').textContent = 'Chờ đăng nhập...';
+                    }
+                });
+                
+                // Tự động đăng nhập ẩn danh
+                // Vì đây là app của bạn, bạn sẽ luôn là user duy nhất
+                await signInAnonymously(auth);
+                
+                // Khởi chạy PWA
+                registerPWA();
+
+            } catch (e) {
+                console.error("Init Failed:", e);
+                showToast(`Lỗi hệ thống: ${e.message}`, 'error');
+            }
+        })();
+    </script>
+</body>
+</html>
+
+
