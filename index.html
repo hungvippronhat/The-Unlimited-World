@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     
-    <!-- === PWA & Mobile Meta Tags === -->
+    <!-- PWA & Mobile Meta Tags -->
     <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -208,19 +208,18 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, addDoc, deleteDoc, onSnapshot, collection, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // === ĐÂY LÀ CONFIG CỦA BẠN ===
+        // === ĐÂY LÀ CONFIG MỚI CỦA BẠN ===
         const firebaseConfig = {
-          apiKey: "AIzaSyBJk8pGVdBe6BO6FFWa8JdaEk_H0HEqfYA",
-          authDomain: "unlimited-world-ebba7.firebaseapp.com",
-          projectId: "unlimited-world-ebba7",
-          storageBucket: "unlimited-world-ebba7.firebasestorage.app",
-          messagingSenderId: "935498256620",
-          appId: "1:935498256620:web:9928e813dfbebd7b1a95c9",
-          measurementId: "G-E7JG5LEYR9"
+          apiKey: "AIzaSyC8TekrB0x68vUaO1c0LirEU8QI1ELYXQs",
+          authDomain: "the-unlimited-world.firebaseapp.com",
+          projectId: "the-unlimited-world",
+          storageBucket: "the-unlimited-world.firebasestorage.app",
+          messagingSenderId: "271423038442",
+          appId: "1:271423038442:web:94a1250a086b4d77670893",
+          measurementId: "G-BR3QL6S7VE"
         };
-        // === HẾT CONFIG CỦA BẠN ===
+        // === HẾT CONFIG ===
 
-        // Chúng ta sẽ dùng projectId của bạn làm "appId"
         const appId = firebaseConfig.projectId; 
 
         let db, auth, userId;
@@ -245,7 +244,6 @@
             }, 5000);
         };
 
-        // --- WORD COUNT LOGIC ---
         const updateWordCount = () => {
             const text = $('chapContentInput').value;
             $('charCountDisplay').textContent = `${text.length} ký tự`;
@@ -254,7 +252,6 @@
         };
         $('chapContentInput').addEventListener('input', updateWordCount);
 
-        // --- PWA REGISTRATION ---
         function registerPWA() {
             const manifestJSON = {
                 "name": "Story Creator Studio",
@@ -273,7 +270,14 @@
             const manifestBlob = new Blob([manifestString], { type: 'application/json' });
             const manifestURL = URL.createObjectURL(manifestBlob);
             let manifestLink = document.querySelector('link[rel="manifest"]');
-            manifestLink.href = manifestURL;
+            if (manifestLink) {
+                manifestLink.href = manifestURL;
+            } else {
+                manifestLink = document.createElement('link');
+                manifestLink.rel = 'manifest';
+                manifestLink.href = manifestURL;
+                document.head.appendChild(manifestLink);
+            }
 
             if ('serviceWorker' in navigator) {
                 const swContent = `
@@ -626,19 +630,14 @@
                 onAuthStateChanged(auth, (u) => {
                     if(u) {
                         userId = u.uid;
-                        // Cập nhật trạng thái đã kết nối
                         $('authStatus').textContent = `Đã kết nối (ID: ...${u.uid.slice(-4)})`;
-                        app.nav('dashboard'); // Chuyển tới app
+                        app.nav('dashboard'); 
                     } else {
                         $('authStatus').textContent = 'Chờ đăng nhập...';
                     }
                 });
                 
-                // Tự động đăng nhập ẩn danh
-                // Vì đây là app của bạn, bạn sẽ luôn là user duy nhất
                 await signInAnonymously(auth);
-                
-                // Khởi chạy PWA
                 registerPWA();
 
             } catch (e) {
@@ -649,5 +648,4 @@
     </script>
 </body>
 </html>
-
 
